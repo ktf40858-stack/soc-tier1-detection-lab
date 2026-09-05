@@ -38,14 +38,14 @@ The interesting part of the repo is not the rule files, it is the **tuning notes
 
 ## Detections and coverage
 
-| ID | Detection | ATT&CK | Data source | Runbook |
-|---|---|---|---|---|
-| SOC-001 | Encoded PowerShell command line | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon EID 1 | [RB-001](runbooks/RB-001-encoded-powershell.md) |
-| SOC-002 | Failed logon burst (password spray / brute force) | [T1110](https://attack.mitre.org/techniques/T1110/) | Security EID 4625 | [RB-002](runbooks/RB-002-failed-logon-bruteforce.md) |
-| SOC-003 | LOLBin download (certutil / bitsadmin / curl) | [T1105](https://attack.mitre.org/techniques/T1105/) | Sysmon EID 1 | [RB-003](runbooks/RB-003-lolbin-download.md) |
-| SOC-004 | Run key persistence | [T1547.001](https://attack.mitre.org/techniques/T1547/001/) | Sysmon EID 13 | [RB-004](runbooks/RB-004-persistence-run-key.md) |
-| SOC-005 | Scheduled task created by a non-admin process | [T1053.005](https://attack.mitre.org/techniques/T1053/005/) | Sysmon EID 1 | [RB-004](runbooks/RB-004-persistence-run-key.md) |
-| SOC-006 | rundll32 with no arguments / suspicious parent | [T1218.011](https://attack.mitre.org/techniques/T1218/011/) | Sysmon EID 1 | [RB-003](runbooks/RB-003-lolbin-download.md) |
+| ID | Detection | Rule | ATT&CK | Data source | Runbook |
+|---|---|---|---|---|---|
+| SOC-001 | Encoded PowerShell command line | [sigma](detections/sigma/proc_creation_win_powershell_encodedcommand.yml) | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | Sysmon EID 1 | [RB-001](runbooks/RB-001-encoded-powershell.md) |
+| SOC-002 | Failed logon burst (password spray / brute force) | [sigma](detections/sigma/auth_win_failed_logon_bruteforce.yml) | [T1110](https://attack.mitre.org/techniques/T1110/) | Security EID 4625 | [RB-002](runbooks/RB-002-failed-logon-bruteforce.md) |
+| SOC-003 | LOLBin download (certutil / bitsadmin / curl) | [sigma](detections/sigma/proc_creation_win_lolbin_certutil_download.yml) | [T1105](https://attack.mitre.org/techniques/T1105/) | Sysmon EID 1 | [RB-003](runbooks/RB-003-lolbin-download.md) |
+| SOC-004 | Run key persistence | [sigma](detections/sigma/registry_persistence_run_key.yml) | [T1547.001](https://attack.mitre.org/techniques/T1547/001/) | Sysmon EID 13 | [RB-004](runbooks/RB-004-persistence-run-key.md) |
+| SOC-005 | Scheduled task created by a non-admin process | [sigma](detections/sigma/proc_creation_win_scheduled_task_creation.yml) | [T1053.005](https://attack.mitre.org/techniques/T1053/005/) | Sysmon EID 1 | [RB-004](runbooks/RB-004-persistence-run-key.md) |
+| SOC-006 | rundll32 with no arguments / suspicious parent | [sigma](detections/sigma/proc_creation_win_rundll32_suspicious.yml) | [T1218.011](https://attack.mitre.org/techniques/T1218/011/) | Sysmon EID 1 | [RB-003](runbooks/RB-003-lolbin-download.md) |
 
 Full matrix with the gaps I know about: [`docs/03-mitre-coverage.md`](docs/03-mitre-coverage.md).
 
@@ -75,6 +75,17 @@ credentials are changed at install time — the step is in the build guide, not 
 - Detection format: [SigmaHQ](https://github.com/SigmaHQ/sigma).
 - Technique simulation: [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team).
 - Technique taxonomy: [MITRE ATT&CK](https://attack.mitre.org/).
+
+## Related labs
+
+The detections here are the reactive half. The preventive half lives in the other repos:
+
+- [l2-attacks-and-mitigations](https://github.com/ktf40858-stack/l2-attacks-and-mitigations) — the Layer 2 attacks these
+  detections would see coming off a switch, and the configuration that stops them first.
+- [network-config-compliance](https://github.com/ktf40858-stack/network-config-compliance) — catching the misconfiguration
+  before it ships, rather than alerting on it after.
+- [zero-trust-sase-architecture](https://github.com/ktf40858-stack/zero-trust-sase-architecture) — the access model that
+  shrinks what an alert can reach in the first place.
 
 ## Author
 

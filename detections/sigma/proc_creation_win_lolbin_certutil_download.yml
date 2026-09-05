@@ -1,3 +1,4 @@
+# SOC-003 - lab detection id. Wazuh translation: ../wazuh/local_rules.xml
 title: LOLBin Used to Download a Remote File
 id: 8f2a1c40-3b1e-4e77-9a2d-5c1f0e7b4a03
 status: experimental
