@@ -1,0 +1,46 @@
+title: Autorun Persistence via Run Key
+id: 8f2a1c40-3b1e-4e77-9a2d-5c1f0e7b4a04
+status: experimental
+description: >
+  Detects a value written under a Run / RunOnce key. This is the oldest persistence
+  mechanism on Windows and still one of the most common, because it needs no privilege
+  beyond the user's own hive.
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+author: Kodjo Apedoh
+date: 2026/09/05
+tags:
+  - attack.persistence
+  - attack.t1547.001
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    TargetObject|contains:
+      - '\Software\Microsoft\Windows\CurrentVersion\Run\'
+      - '\Software\Microsoft\Windows\CurrentVersion\RunOnce\'
+      - '\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run\'
+  selection_suspicious_value:
+    Details|contains:
+      - '\AppData\'
+      - '\Temp\'
+      - '\Users\Public\'
+      - 'powershell'
+      - 'cmd.exe /c'
+      - 'mshta'
+      - 'rundll32'
+  filter_installers:
+    Image|endswith:
+      - '\msiexec.exe'
+      - '\TrustedInstaller.exe'
+  condition: selection and selection_suspicious_value and not filter_installers
+fields:
+  - TargetObject
+  - Details
+  - Image
+  - User
+falsepositives:
+  - Legitimate software that installs per-user into AppData (Teams, Slack, browser updaters)
+  - Baseline the endpoint for a week before raising this above medium
+level: medium

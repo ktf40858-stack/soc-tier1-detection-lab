@@ -1,0 +1,126 @@
+<!--
+  SOC Tier 1 Detection Lab - custom Wazuh rules
+  Deploy to: /var/ossec/etc/rules/local_rules.xml
+  Then:      /var/ossec/bin/wazuh-control restart
+
+  Custom rule IDs start at 100000 (the range Wazuh reserves for user rules).
+  Each rule maps to the Sigma rule of the same SOC-xxx id in ../sigma/.
+  Parent rule ids used:
+    61603 - Sysmon Event 1  (process creation)
+    61614 - Sysmon Event 13 (registry value set)
+    60122 - Windows 4625    (logon failure)
+-->
+<group name="soc_lab,windows,sysmon,">
+
+  <!-- SOC-001 | T1059.001 | Encoded PowerShell command line -->
+  <rule id="100001" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image">(?i)\\(powershell|pwsh)\.exe$</field>
+    <field name="win.eventdata.commandLine">(?i)\s-e(nc|ncodedcommand|ncoded)?\s</field>
+    <description>SOC-001: Encoded PowerShell command line executed by $(win.eventdata.user)</description>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+    <group>execution,defense_evasion,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
+  </rule>
+
+  <!-- SOC-001b | tuning: the management agent encodes its own inventory job -->
+  <rule id="100002" level="0">
+    <if_sid>100001</if_sid>
+    <field name="win.eventdata.parentImage">(?i)\\ManagementAgent\\agent\.exe$</field>
+    <description>SOC-001: known-good encoded PowerShell from the management agent (tuned out)</description>
+  </rule>
+
+  <!-- SOC-003 | T1105 | LOLBin download -->
+  <rule id="100003" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine">(?i)(certutil.{0,40}(urlcache|verifyctl)|bitsadmin.{0,20}/transfer|(DownloadString|DownloadFile|Invoke-WebRequest|Net\.WebClient))</field>
+    <description>SOC-003: LOLBin used to download a remote file - $(win.eventdata.image)</description>
+    <mitre>
+      <id>T1105</id>
+      <id>T1218</id>
+    </mitre>
+    <group>command_and_control,defense_evasion,</group>
+  </rule>
+
+  <!-- SOC-006 | T1218.011 | rundll32 with no arguments -->
+  <rule id="100004" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image">(?i)\\rundll32\.exe$</field>
+    <field name="win.eventdata.commandLine">(?i)rundll32(\.exe)?"?\s*$</field>
+    <description>SOC-006: rundll32.exe launched with no arguments - possible injection</description>
+    <mitre>
+      <id>T1218.011</id>
+    </mitre>
+    <group>defense_evasion,</group>
+  </rule>
+
+  <!-- SOC-006b | rundll32 spawned by an Office application -->
+  <rule id="100005" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image">(?i)\\rundll32\.exe$</field>
+    <field name="win.eventdata.parentImage">(?i)\\(winword|excel|powerpnt|outlook)\.exe$</field>
+    <description>SOC-006: rundll32.exe spawned by Office ($(win.eventdata.parentImage))</description>
+    <mitre>
+      <id>T1218.011</id>
+      <id>T1566.001</id>
+    </mitre>
+    <group>defense_evasion,initial_access,</group>
+  </rule>
+
+  <!-- SOC-005 | T1053.005 | Scheduled task created by a script interpreter -->
+  <rule id="100006" level="10">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine">(?i)/create</field>
+    <field name="win.eventdata.parentImage">(?i)\\(powershell|pwsh|cmd|wscript|cscript|mshta|winword|excel)\.exe$</field>
+    <description>SOC-005: Scheduled task created from $(win.eventdata.parentImage)</description>
+    <mitre>
+      <id>T1053.005</id>
+    </mitre>
+    <group>persistence,privilege_escalation,</group>
+  </rule>
+
+  <!-- SOC-004 | T1547.001 | Run key persistence -->
+  <rule id="100007" level="10">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject">(?i)\\CurrentVersion\\Run(Once)?\\</field>
+    <field name="win.eventdata.details">(?i)(\\AppData\\|\\Temp\\|\\Users\\Public\\|powershell|mshta|rundll32|cmd\.exe /c)</field>
+    <description>SOC-004: Autorun persistence written to $(win.eventdata.targetObject)</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+    <group>persistence,</group>
+  </rule>
+
+  <!-- SOC-004b | tuning: signed installers legitimately write Run keys -->
+  <rule id="100008" level="0">
+    <if_sid>100007</if_sid>
+    <field name="win.eventdata.image">(?i)\\(msiexec|TrustedInstaller)\.exe$</field>
+    <description>SOC-004: Run key written by a system installer (tuned out)</description>
+  </rule>
+
+  <!-- SOC-002 | T1110 | Failed logon burst from one source -->
+  <rule id="100010" level="10" frequency="10" timeframe="300">
+    <if_matched_sid>60122</if_matched_sid>
+    <same_field>win.eventdata.ipAddress</same_field>
+    <description>SOC-002: 10+ failed logons in 5 minutes from $(win.eventdata.ipAddress) - brute force</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>credential_access,authentication_failures,pci_dss_10.2.4,</group>
+  </rule>
+
+  <!-- SOC-002b | password spraying: many accounts, few tries each, same source -->
+  <rule id="100011" level="12" frequency="8" timeframe="600">
+    <if_matched_sid>60122</if_matched_sid>
+    <same_field>win.eventdata.ipAddress</same_field>
+    <different_field>win.eventdata.targetUserName</different_field>
+    <description>SOC-002: 8+ distinct accounts failed from $(win.eventdata.ipAddress) - password spraying</description>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+    <group>credential_access,</group>
+  </rule>
+
+</group>

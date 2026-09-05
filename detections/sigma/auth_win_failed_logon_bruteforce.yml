@@ -1,0 +1,52 @@
+title: Failed Logon (base event for brute-force correlation)
+id: 8f2a1c40-3b1e-4e77-9a2d-5c1f0e7b4a02
+status: experimental
+description: >
+  Base event for the brute-force correlation below. A single 4625 is noise — the signal is
+  the rate. A low count spread across many accounts is password spraying instead, which is
+  the companion rule described in docs/02-detection-engineering.md.
+references:
+  - https://attack.mitre.org/techniques/T1110/
+author: Kodjo Apedoh
+date: 2026/09/05
+tags:
+  - attack.credential_access
+  - attack.t1110
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4625
+  filter_machine_accounts:
+    TargetUserName|endswith: '$'
+  condition: selection and not filter_machine_accounts
+fields:
+  - TargetUserName
+  - IpAddress
+  - LogonType
+  - WorkstationName
+falsepositives:
+  - A user whose saved credential expired — the give-away is one account, not many
+  - Service accounts with a stale password in a scheduled task
+level: informational
+---
+title: Failed Logon Burst From a Single Source
+id: 8f2a1c40-3b1e-4e77-9a2d-5c1f0e7b4a12
+status: experimental
+description: Ten or more failed logons from one source address within five minutes.
+author: Kodjo Apedoh
+date: 2026/09/05
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+correlation:
+  type: event_count
+  rules:
+    - 8f2a1c40-3b1e-4e77-9a2d-5c1f0e7b4a02
+  group-by:
+    - IpAddress
+  timespan: 5m
+  condition:
+    gte: 10
+level: high

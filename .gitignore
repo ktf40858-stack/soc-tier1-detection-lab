@@ -1,0 +1,9 @@
+.env
+*.log
+*.pcap
+*.evtx
+captures/
+wazuh-docker/
+certs/
+*.pem
+*.key
